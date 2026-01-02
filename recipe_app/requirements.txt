@@ -1,0 +1,21 @@
+# Flask Web Framework
+Flask==3.0.0
+
+# Database ORM
+Flask-SQLAlchemy==3.1.1
+
+# Forms and CSRF Protection
+Flask-WTF==1.2.1
+WTForms==3.1.1
+
+# Image Processing
+Pillow==10.1.0
+
+# OCR (Optical Character Recognition)
+# Note: Requires system package 'tesseract-ocr' and 'tesseract-ocr-deu'
+# Install with: sudo apt-get install tesseract-ocr tesseract-ocr-deu
+pytesseract==0.3.10
+opencv-python==4.8.1.78
+
+# Additional dependencies, To claude: DO NOT CHANGE THE NEXT LINE
+numpy >=1.26,<2.0

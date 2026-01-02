@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}{{ recipe.title }} - Cooked Together{% endblock %}
+
+{% block content %}
+<div class="recipe-detail" id="recipe-detail">
+    <!-- Zurück-Button -->
+    <div class="back-button">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">← Zurück zur Übersicht</a>
+    </div>
+
+    <!-- Rezept-Header -->
+    <header class="recipe-header">
+        <h1 class="recipe-title">{{ recipe.title }}</h1>
+
+        <!-- Tags -->
+        {% set tags_list = recipe.tags.all() %}
+        {% if tags_list %}
+            <div class="recipe-tags">
+                {% for tag in tags_list %}
+                    <a href="{{ url_for('index', tag=tag.name) }}" class="tag-badge">
+                        {{ tag.name }}
+                    </a>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Meta-Informationen -->
+        <div class="recipe-meta">
+            {% if recipe.prep_time_minutes %}
+                <span class="meta-item">⏱️ Vorbereitung: {{ recipe.prep_time_minutes }} min</span>
+            {% endif %}
+            {% if recipe.cook_time_minutes %}
+                <span class="meta-item">🍳 Kochzeit: {{ recipe.cook_time_minutes }} min</span>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Rezeptbild -->
+    {% if recipe.image_path %}
+        <div class="recipe-image">
+            <img src="{{ url_for('static', filename='../uploads/' + recipe.image_path) }}"
+                 alt="{{ recipe.title }}">
+        </div>
+    {% endif %}
+
+    <!-- Cooking Mode Button -->
+    <div class="cooking-mode-toggle">
+        <button onclick="toggleCookingMode()" class="btn btn-cooking-mode">
+            📱 Kochmodus aktivieren
+        </button>
+    </div>
+
+    <!-- Portionskontrolle -->
+    <div class="portion-control">
+        <h2>Portionen:</h2>
+        <div class="portion-selector">
+            <button onclick="decrementPortions()" class="portion-btn">−</button>
+            <span class="portion-display">
+                <span id="current-portions">{{ recipe.base_portions }}</span> Portionen
+            </span>
+            <button onclick="incrementPortions()" class="portion-btn">+</button>
+        </div>
+        <p class="portion-hint">Basis: {{ recipe.base_portions }} Portionen</p>
+    </div>
+
+    <!-- Zutatenliste -->
+    <section class="ingredients-section">
+        <h2>Zutaten</h2>
+        <ul class="ingredients-list" id="ingredients-list">
+            {% for ingredient in recipe.ingredients %}
+                <li class="ingredient-item"
+                    data-base-amount="{{ ingredient.amount }}"
+                    data-unit="{{ ingredient.unit }}"
+                    data-name="{{ ingredient.name }}">
+                    <span class="ingredient-amount">{{ ingredient.amount }}</span>
+                    <span class="ingredient-unit">{{ ingredient.unit }}</span>
+                    <span class="ingredient-name">{{ ingredient.name }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <!-- Beschreibung/Anleitung -->
+    {% if recipe.description %}
+        <section class="description-section">
+            <h2>Zubereitung</h2>
+            <div class="recipe-description">
+                {{ recipe.description|replace('\n', '<br>')|safe }}
+            </div>
+        </section>
+    {% endif %}
+
+    <!-- Kommentare -->
+    <section class="comments-section">
+        <h2>Kommentare ({{ comments|length }})</h2>
+
+        <!-- Bestehende Kommentare -->
+        {% if comments %}
+            <div class="comments-list">
+                {% for comment in comments %}
+                    <article class="comment">
+                        <div class="comment-header">
+                            <strong class="comment-author">{{ comment.author_name }}</strong>
+                            <time class="comment-date">{{ comment.created_at.strftime('%d.%m.%Y %H:%M') }}</time>
+                        </div>
+                        <p class="comment-content">{{ comment.content }}</p>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="no-comments">Noch keine Kommentare. Sei der Erste!</p>
+        {% endif %}
+
+        <!-- Kommentar hinzufügen -->
+        <div class="add-comment-form">
+            <h3>Kommentar hinzufügen</h3>
+            <form action="{{ url_for('add_comment', recipe_id=recipe.id) }}" method="post">
+                <div class="form-group">
+                    <label for="author_name">Dein Name (optional):</label>
+                    <input
+                        type="text"
+                        id="author_name"
+                        name="author_name"
+                        placeholder="Anonym"
+                        maxlength="100"
+                        class="form-input"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="content">Kommentar (max. 500 Zeichen):</label>
+                    <textarea
+                        id="content"
+                        name="content"
+                        rows="4"
+                        maxlength="500"
+                        required
+                        placeholder="Wie hat dir das Rezept gefallen? Hast du Tipps?"
+                        class="form-textarea"
+                    ></textarea>
+                    <span class="char-counter">
+                        <span id="char-count">0</span>/500
+                    </span>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Kommentar absenden</button>
+            </form>
+        </div>
+    </section>
+</div>
+
+<!-- Basis-Portionen für JavaScript -->
+<script>
+    const BASE_PORTIONS = {{ recipe.base_portions }};
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Zeichenzähler für Kommentare
+    const contentTextarea = document.getElementById('content');
+    const charCount = document.getElementById('char-count');
+
+    if (contentTextarea && charCount) {
+        contentTextarea.addEventListener('input', function() {
+            charCount.textContent = this.value.length;
+        });
+    }
+
+    // Cooking Mode Toggle
+    function toggleCookingMode() {
+        const recipeDetail = document.getElementById('recipe-detail');
+        const btn = document.querySelector('.btn-cooking-mode');
+
+        recipeDetail.classList.toggle('cooking-mode');
+
+        if (recipeDetail.classList.contains('cooking-mode')) {
+            btn.textContent = '❌ Kochmodus beenden';
+            // Zum Anfang scrollen
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            btn.textContent = '📱 Kochmodus aktivieren';
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block title %}Neues Rezept - Cooked Together{% endblock %}
+
+{% block content %}
+<div class="add-recipe-page">
+    <h1>Neues Rezept hinzufügen</h1>
+
+    <!-- OCR Upload-Bereich -->
+    <div class="ocr-upload-section">
+        <h2>📸 OCR: Rezept aus Bild scannen (optional)</h2>
+        <p class="help-text">
+            Lade ein Foto deines Rezepts hoch, und wir füllen das Formular automatisch aus!
+        </p>
+
+        <div class="ocr-upload-box">
+            <input
+                type="file"
+                id="ocr-image"
+                accept="image/jpeg,image/png,image/jpg"
+                class="file-input"
+            >
+            <label for="ocr-image" class="file-label">
+                <span class="upload-icon">📷</span>
+                <span>Bild auswählen zum Scannen</span>
+            </label>
+            <button onclick="processOCR()" class="btn btn-primary" id="ocr-btn" disabled>
+                🔍 Text erkennen
+            </button>
+        </div>
+
+        <div id="ocr-status" class="ocr-status"></div>
+    </div>
+
+    <!-- Rezept-Formular -->
+    <form action="{{ url_for('add_recipe') }}" method="post" enctype="multipart/form-data" id="recipe-form">
+        <!-- Basis-Informationen -->
+        <section class="form-section">
+            <h2>Basis-Informationen</h2>
+
+            <div class="form-group">
+                <label for="title">Titel: *</label>
+                <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    required
+                    maxlength="200"
+                    placeholder="z.B. Omas Apfelkuchen"
+                    class="form-input"
+                    value="{{ ocr_data.title if ocr_data else '' }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="description">Beschreibung / Anleitung:</label>
+                <textarea
+                    id="description"
+                    name="description"
+                    rows="8"
+                    placeholder="Beschreibe die Zubereitung Schritt für Schritt..."
+                    class="form-textarea"
+                >{{ ocr_data.description if ocr_data else '' }}</textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="base_portions">Portionen:</label>
+                    <input
+                        type="number"
+                        id="base_portions"
+                        name="base_portions"
+                        min="1"
+                        max="50"
+                        value="{{ ocr_data.portions if ocr_data else '4' }}"
+                        class="form-input"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="prep_time">Vorbereitungszeit (Min.):</label>
+                    <input
+                        type="number"
+                        id="prep_time"
+                        name="prep_time"
+                        min="0"
+                        placeholder="z.B. 30"
+                        class="form-input"
+                        value="{{ ocr_data.prep_time if ocr_data and ocr_data.prep_time else '' }}"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="cook_time">Kochzeit (Min.):</label>
+                    <input
+                        type="number"
+                        id="cook_time"
+                        name="cook_time"
+                        min="0"
+                        placeholder="z.B. 45"
+                        class="form-input"
+                        value="{{ ocr_data.cook_time if ocr_data and ocr_data.cook_time else '' }}"
+                    >
+                </div>
+            </div>
+        </section>
+
+        <!-- Zutaten -->
+        <section class="form-section">
+            <h2>Zutaten</h2>
+            <p class="help-text">Füge alle benötigten Zutaten hinzu.</p>
+
+            <div id="ingredients-container">
+                <!-- Initiale Zutat oder OCR-Daten -->
+                {% if ocr_data and ocr_data.ingredients %}
+                    {% for ingredient in ocr_data.ingredients %}
+                        <div class="ingredient-row">
+                            <input
+                                type="number"
+                                name="ingredient_amount[]"
+                                step="0.01"
+                                placeholder="Menge"
+                                class="form-input ingredient-amount"
+                                value="{{ ingredient.amount }}"
+                                required
+                            >
+                            <input
+                                type="text"
+                                name="ingredient_unit[]"
+                                placeholder="Einheit"
+                                class="form-input ingredient-unit"
+                                value="{{ ingredient.unit }}"
+                            >
+                            <input
+                                type="text"
+                                name="ingredient_name[]"
+                                placeholder="Zutat"
+                                class="form-input ingredient-name"
+                                value="{{ ingredient.name }}"
+                                required
+                            >
+                            <button type="button" onclick="removeIngredient(this)" class="btn-remove">✕</button>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <!-- Mindestens eine leere Zeile -->
+                    <div class="ingredient-row">
+                        <input
+                            type="number"
+                            name="ingredient_amount[]"
+                            step="0.01"
+                            placeholder="Menge"
+                            class="form-input ingredient-amount"
+                            required
+                        >
+                        <input
+                            type="text"
+                            name="ingredient_unit[]"
+                            placeholder="Einheit (z.B. g, ml, EL)"
+                            class="form-input ingredient-unit"
+                        >
+                        <input
+                            type="text"
+                            name="ingredient_name[]"
+                            placeholder="Zutat"
+                            class="form-input ingredient-name"
+                            required
+                        >
+                        <button type="button" onclick="removeIngredient(this)" class="btn-remove">✕</button>
+                    </div>
+                {% endif %}
+            </div>
+
+            <button type="button" onclick="addIngredient()" class="btn btn-secondary">
+                ➕ Zutat hinzufügen
+            </button>
+        </section>
+
+        <!-- Tags -->
+        <section class="form-section">
+            <h2>Tags / Kategorien</h2>
+            <p class="help-text">Komma-getrennte Tags (z.B. vegetarisch, schnell, dessert)</p>
+
+            <div class="form-group">
+                <input
+                    type="text"
+                    id="tags"
+                    name="tags"
+                    placeholder="z.B. vegetarisch, schnell, dessert"
+                    class="form-input"
+                >
+            </div>
+        </section>
+
+        <!-- Bild hochladen -->
+        <section class="form-section">
+            <h2>Rezeptbild (optional)</h2>
+
+            <div class="form-group">
+                <input
+                    type="file"
+                    id="image"
+                    name="image"
+                    accept="image/jpeg,image/png,image/jpg"
+                    class="file-input"
+                >
+                <label for="image" class="file-label">
+                    <span class="upload-icon">🖼️</span>
+                    <span id="file-name">Bild auswählen</span>
+                </label>
+            </div>
+        </section>
+
+        <!-- Submit Button -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-large">
+                ✅ Rezept speichern
+            </button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                Abbrechen
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Dynamische Zutatenzeilen hinzufügen
+    function addIngredient() {
+        const container = document.getElementById('ingredients-container');
+        const newRow = document.createElement('div');
+        newRow.className = 'ingredient-row';
+        newRow.innerHTML = `
+            <input type="number" name="ingredient_amount[]" step="0.01" placeholder="Menge" class="form-input ingredient-amount" required>
+            <input type="text" name="ingredient_unit[]" placeholder="Einheit" class="form-input ingredient-unit">
+            <input type="text" name="ingredient_name[]" placeholder="Zutat" class="form-input ingredient-name" required>
+            <button type="button" onclick="removeIngredient(this)" class="btn-remove">✕</button>
+        `;
+        container.appendChild(newRow);
+    }
+
+    // Zutat entfernen
+    function removeIngredient(button) {
+        const container = document.getElementById('ingredients-container');
+        // Mindestens eine Zeile behalten
+        if (container.children.length > 1) {
+            button.parentElement.remove();
+        }
+    }
+
+    // Dateiname anzeigen
+    const imageInput = document.getElementById('image');
+    const fileNameSpan = document.getElementById('file-name');
+
+    if (imageInput && fileNameSpan) {
+        imageInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                fileNameSpan.textContent = this.files[0].name;
+            } else {
+                fileNameSpan.textContent = 'Bild auswählen';
+            }
+        });
+    }
+
+    // OCR-Funktionalität
+    const ocrImageInput = document.getElementById('ocr-image');
+    const ocrBtn = document.getElementById('ocr-btn');
+
+    if (ocrImageInput) {
+        ocrImageInput.addEventListener('change', function() {
+            ocrBtn.disabled = !this.files || !this.files[0];
+        });
+    }
+
+    async function processOCR() {
+        const fileInput = document.getElementById('ocr-image');
+        const statusDiv = document.getElementById('ocr-status');
+        const ocrBtn = document.getElementById('ocr-btn');
+
+        if (!fileInput.files || !fileInput.files[0]) {
+            statusDiv.innerHTML = '<p class="error">Bitte wähle zuerst ein Bild aus!</p>';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('image', fileInput.files[0]);
+
+        // Status anzeigen
+        statusDiv.innerHTML = '<p class="info">⏳ Bild wird verarbeitet, bitte warten...</p>';
+        ocrBtn.disabled = true;
+
+        try {
+            const response = await fetch('{{ url_for("ocr_upload") }}', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                // Formular ausfüllen
+                fillFormWithOCRData(result.data);
+
+                // Confidence-basierte Nachricht
+                const confidence = result.data.confidence || 'low';
+                const docType = result.data.doc_type || 'unknown';
+
+                let message = '';
+                let cssClass = '';
+
+                if (confidence === 'high') {
+                    message = `✅ Text erfolgreich erkannt! (${getDocTypeLabel(docType)})<br>Bitte überprüfe die Daten.`;
+                    cssClass = 'success';
+                } else if (confidence === 'medium') {
+                    message = `⚠️ Text erkannt, aber mit Unsicherheiten. (${getDocTypeLabel(docType)})<br><strong>Bitte sorgfältig überprüfen!</strong>`;
+                    cssClass = 'warning';
+                } else {
+                    message = `⚠️ OCR unsicher - nur wenige Informationen erkannt. (${getDocTypeLabel(docType)})<br><strong>Bitte alle Felder manuell prüfen!</strong>`;
+                    cssClass = 'warning';
+                }
+
+                statusDiv.innerHTML = `<p class="${cssClass}">${message}</p>`;
+            } else {
+                statusDiv.innerHTML = `<p class="error">❌ Fehler: ${result.error || 'Unbekannter Fehler'}</p>`;
+            }
+        } catch (error) {
+            statusDiv.innerHTML = `<p class="error">❌ Verbindungsfehler: ${error.message}</p>`;
+        } finally {
+            ocrBtn.disabled = false;
+        }
+    }
+
+    function getDocTypeLabel(docType) {
+        const labels = {
+            'modern': 'Modernes Rezept',
+            'typed': 'Schreibmaschine',
+            'table': 'Tabellenlayout',
+            'unknown': 'Unbekannter Typ'
+        };
+        return labels[docType] || 'Unbekannt';
+    }
+
+    function fillFormWithOCRData(data) {
+        // Titel
+        if (data.title) {
+            document.getElementById('title').value = data.title;
+        }
+
+        // Beschreibung
+        if (data.description) {
+            document.getElementById('description').value = data.description;
+        }
+
+        // Portionen
+        if (data.portions) {
+            document.getElementById('base_portions').value = data.portions;
+        }
+
+        // Zeiten
+        if (data.prep_time) {
+            document.getElementById('prep_time').value = data.prep_time;
+        }
+        if (data.cook_time) {
+            document.getElementById('cook_time').value = data.cook_time;
+        }
+
+        // Zutaten
+        if (data.ingredients && data.ingredients.length > 0) {
+            const container = document.getElementById('ingredients-container');
+            container.innerHTML = ''; // Leeren
+
+            data.ingredients.forEach(ingredient => {
+                const row = document.createElement('div');
+                row.className = 'ingredient-row';
+                row.innerHTML = `
+                    <input type="number" name="ingredient_amount[]" step="0.01" value="${ingredient.amount}" class="form-input ingredient-amount" required>
+                    <input type="text" name="ingredient_unit[]" value="${ingredient.unit || ''}" placeholder="Einheit" class="form-input ingredient-unit">
+                    <input type="text" name="ingredient_name[]" value="${ingredient.name}" placeholder="Zutat" class="form-input ingredient-name" required>
+                    <button type="button" onclick="removeIngredient(this)" class="btn-remove">✕</button>
+                `;
+                container.appendChild(row);
+            });
+        }
+    }
+</script>
+{% endblock %}

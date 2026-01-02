@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Alle Rezepte - Cooked Together{% endblock %}
+
+{% block content %}
+<div class="index-page">
+    <!-- Suchleiste -->
+    <div class="search-section">
+        <form action="{{ url_for('index') }}" method="get" class="search-form">
+            <input
+                type="text"
+                name="search"
+                placeholder="🔍 Rezepte durchsuchen..."
+                value="{{ search_term }}"
+                class="search-input"
+            >
+            <button type="submit" class="btn btn-primary">Suchen</button>
+        </form>
+
+        {% if search_term %}
+            <div class="search-info">
+                Suche nach: <strong>{{ search_term }}</strong>
+                <a href="{{ url_for('index') }}" class="clear-search">✕ Zurücksetzen</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Tag-Filter Pills -->
+    {% if all_tags %}
+    <div class="tag-filter-section">
+        <h3>Filter nach Kategorie:</h3>
+        <div class="tag-pills">
+            <a href="{{ url_for('index') }}"
+               class="tag-pill {% if not tag_filter %}active{% endif %}">
+                Alle
+            </a>
+            {% for tag in all_tags %}
+                <a href="{{ url_for('index', tag=tag.name) }}"
+                   class="tag-pill {% if tag_filter == tag.name %}active{% endif %}">
+                    {{ tag.name|capitalize }}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Rezeptliste -->
+    <div class="recipes-grid">
+        {% if recipes %}
+            {% for recipe in recipes %}
+                <article class="recipe-card">
+                    <a href="{{ url_for('view_recipe', recipe_id=recipe.id) }}" class="recipe-card-link">
+                        <!-- Rezeptbild -->
+                        {% if recipe.image_path %}
+                            <div class="recipe-card-image">
+                                <img src="{{ url_for('static', filename='../uploads/' + recipe.image_path) }}"
+                                     alt="{{ recipe.title }}">
+                            </div>
+                        {% else %}
+                            <div class="recipe-card-image recipe-card-image-placeholder">
+                                <span class="placeholder-icon">🍽️</span>
+                            </div>
+                        {% endif %}
+
+                        <!-- Rezeptinfo -->
+                        <div class="recipe-card-content">
+                            <h2 class="recipe-card-title">{{ recipe.title }}</h2>
+
+                            {% if recipe.description %}
+                                <p class="recipe-card-description">
+                                    {{ recipe.description[:100] }}{% if recipe.description|length > 100 %}...{% endif %}
+                                </p>
+                            {% endif %}
+
+                            <!-- Meta-Informationen -->
+                            <div class="recipe-card-meta">
+                                {% if recipe.prep_time_minutes or recipe.cook_time_minutes %}
+                                    <span class="meta-item">
+                                        ⏱️
+                                        {% if recipe.prep_time_minutes %}{{ recipe.prep_time_minutes }} min Vorbereitung{% endif %}
+                                        {% if recipe.prep_time_minutes and recipe.cook_time_minutes %} | {% endif %}
+                                        {% if recipe.cook_time_minutes %}{{ recipe.cook_time_minutes }} min Kochen{% endif %}
+                                    </span>
+                                {% endif %}
+
+                                <span class="meta-item">
+                                    👥 {{ recipe.base_portions }} Portionen
+                                </span>
+                            </div>
+
+                            <!-- Tags -->
+                            {% set tags_list = recipe.tags.all() %}
+                            {% if tags_list %}
+                                <div class="recipe-card-tags">
+                                    {% for tag in tags_list[:3] %}
+                                        <span class="tag-badge">{{ tag.name }}</span>
+                                    {% endfor %}
+                                    {% if tags_list|length > 3 %}
+                                        <span class="tag-badge">+{{ tags_list|length - 3 }}</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </a>
+                </article>
+            {% endfor %}
+        {% else %}
+            <div class="no-results">
+                <p class="no-results-icon">🔍</p>
+                <h2>Keine Rezepte gefunden</h2>
+                {% if search_term or tag_filter %}
+                    <p>Versuche es mit anderen Suchbegriffen oder <a href="{{ url_for('index') }}">zeige alle Rezepte</a>.</p>
+                {% else %}
+                    <p>Noch keine Rezepte vorhanden. <a href="{{ url_for('add_recipe') }}">Füge das erste Rezept hinzu!</a></p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
