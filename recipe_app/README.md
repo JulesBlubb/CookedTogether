@@ -1,4 +1,4 @@
-# 🍳 Cooked Together - Recipes proofed by Weilbäche
+# 🍳 Cooked Together
 
 Eine mobile-optimierte Rezeptverwaltungs-Webanwendung mit OCR-Unterstützung, entwickelt für Familie Weilbäche.
 
@@ -324,7 +324,7 @@ Dieses Projekt ist für den privaten Gebrauch der Familie Weilbäche erstellt.
 
 ## 👨‍💻 Autor
 
-Erstellt mit ❤️ für Familie Weilbäche
+Erstellt mit ❤️ für die Familie
 
 ---
 
