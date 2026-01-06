@@ -6,6 +6,28 @@
 <div class="add-recipe-page">
     <h1>Neues Rezept hinzufügen</h1>
 
+    <!-- Chefkoch Import-Bereich -->
+    <div class="import-section">
+        <h2>🔗 Rezept von Chefkoch.de importieren (optional)</h2>
+        <p class="help-text">
+            Füge einen Link zu einem Chefkoch-Rezept ein, und wir importieren alle Daten automatisch!
+        </p>
+
+        <div class="import-box">
+            <input
+                type="url"
+                id="chefkoch-url"
+                placeholder="https://www.chefkoch.de/rezepte/..."
+                class="form-input"
+            >
+            <button onclick="importFromChefkoch()" class="btn btn-primary" id="import-btn">
+                📥 Importieren
+            </button>
+        </div>
+
+        <div id="import-status" class="import-status"></div>
+    </div>
+
     <!-- OCR Upload-Bereich -->
     <div class="ocr-upload-section">
         <h2>📸 OCR: Rezept aus Bild scannen (optional)</h2>
@@ -34,6 +56,10 @@
 
     <!-- Rezept-Formular -->
     <form action="{{ url_for('add_recipe') }}" method="post" enctype="multipart/form-data" id="recipe-form">
+        <!-- Versteckte Felder für Quellenangabe -->
+        <input type="hidden" id="source" name="source" value="">
+        <input type="hidden" id="source_url" name="source_url" value="">
+
         <!-- Basis-Informationen -->
         <section class="form-section">
             <h2>Basis-Informationen</h2>
@@ -50,6 +76,12 @@
                     class="form-input"
                     value="{{ ocr_data.title if ocr_data else '' }}"
                 >
+            </div>
+
+            <!-- Quellenangabe (wird automatisch gefüllt) -->
+            <div class="form-group" id="source-display" style="display: none;">
+                <label>Quelle:</label>
+                <div class="source-info" id="source-info-text"></div>
             </div>
 
             <div class="form-group">
@@ -226,6 +258,131 @@
 
 {% block extra_scripts %}
 <script>
+    // Token-Authentifizierung prüfen beim Laden der Seite
+    window.addEventListener('DOMContentLoaded', function() {
+        const token = localStorage.getItem('recipeAuthToken');
+
+        if (!token) {
+            // Kein Token vorhanden - zur Authentifizierung umleiten
+            window.location.href = '{{ url_for("auth_token_page") }}';
+        }
+    });
+
+    // Token zu Formular hinzufügen beim Absenden
+    document.getElementById('recipe-form').addEventListener('submit', function(e) {
+        const token = localStorage.getItem('recipeAuthToken');
+
+        if (!token) {
+            e.preventDefault();
+            alert('Kein gültiges Token vorhanden! Bitte authentifiziere dich erneut.');
+            window.location.href = '{{ url_for("auth_token_page") }}';
+            return false;
+        }
+
+        // Token als Header hinzufügen (wird vom Server überprüft)
+        // Da wir ein normales Form-Submit haben, fügen wir es als hidden field hinzu
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'auth_token';
+        tokenInput.value = token;
+        this.appendChild(tokenInput);
+    });
+
+    // Chefkoch Import-Funktionalität
+    async function importFromChefkoch() {
+        const urlInput = document.getElementById('chefkoch-url');
+        const statusDiv = document.getElementById('import-status');
+        const importBtn = document.getElementById('import-btn');
+        const url = urlInput.value.trim();
+
+        if (!url) {
+            statusDiv.innerHTML = '<p class="error">Bitte gib eine Chefkoch-URL ein!</p>';
+            return;
+        }
+
+        // Status anzeigen
+        statusDiv.innerHTML = '<p class="info">⏳ Rezept wird importiert, bitte warten...</p>';
+        importBtn.disabled = true;
+
+        try {
+            const response = await fetch('{{ url_for("import_chefkoch") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url: url })
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                // Formular ausfüllen
+                fillFormWithData(result.data);
+
+                // Quellenangabe setzen
+                document.getElementById('source').value = result.data.source || 'chefkoch.de';
+                document.getElementById('source_url').value = result.data.source_url || url;
+
+                // Quellenangabe anzeigen
+                const sourceDisplay = document.getElementById('source-display');
+                const sourceInfoText = document.getElementById('source-info-text');
+                sourceDisplay.style.display = 'block';
+                sourceInfoText.innerHTML = `<small>Quelle: <a href="${url}" target="_blank">${result.data.source || 'chefkoch.de'}</a></small>`;
+
+                statusDiv.innerHTML = '<p class="success">✅ Rezept erfolgreich importiert! Bitte überprüfe die Daten.</p>';
+            } else {
+                statusDiv.innerHTML = `<p class="error">❌ Fehler: ${result.error || 'Unbekannter Fehler'}</p>`;
+            }
+        } catch (error) {
+            statusDiv.innerHTML = `<p class="error">❌ Verbindungsfehler: ${error.message}</p>`;
+        } finally {
+            importBtn.disabled = false;
+        }
+    }
+
+    function fillFormWithData(data) {
+        // Titel
+        if (data.title) {
+            document.getElementById('title').value = data.title;
+        }
+
+        // Beschreibung
+        if (data.description) {
+            document.getElementById('description').value = data.description;
+        }
+
+        // Portionen
+        if (data.base_portions) {
+            document.getElementById('base_portions').value = data.base_portions;
+        }
+
+        // Zeiten
+        if (data.prep_time_minutes) {
+            document.getElementById('prep_time').value = data.prep_time_minutes;
+        }
+        if (data.cook_time_minutes) {
+            document.getElementById('cook_time').value = data.cook_time_minutes;
+        }
+
+        // Zutaten
+        if (data.ingredients && data.ingredients.length > 0) {
+            const container = document.getElementById('ingredients-container');
+            container.innerHTML = ''; // Leeren
+
+            data.ingredients.forEach(ingredient => {
+                const row = document.createElement('div');
+                row.className = 'ingredient-row';
+                row.innerHTML = `
+                    <input type="number" name="ingredient_amount[]" step="0.01" value="${ingredient.amount}" class="form-input ingredient-amount" required>
+                    <input type="text" name="ingredient_unit[]" value="${ingredient.unit || ''}" placeholder="Einheit" class="form-input ingredient-unit">
+                    <input type="text" name="ingredient_name[]" value="${ingredient.name}" placeholder="Zutat" class="form-input ingredient-name" required>
+                    <button type="button" onclick="removeIngredient(this)" class="btn-remove">✕</button>
+                `;
+                container.appendChild(row);
+            });
+        }
+    }
+
     // Dynamische Zutatenzeilen hinzufügen
     function addIngredient() {
         const container = document.getElementById('ingredients-container');

@@ -7,21 +7,21 @@
 let currentPortions = BASE_PORTIONS || 4;
 
 /**
- * Erhöht die Portionenzahl um 1
+ * Erhöht die Portionenzahl um 0.5
  */
 function incrementPortions() {
     if (currentPortions < 50) { // Max 50 Portionen
-        currentPortions++;
+        currentPortions += 0.5;
         updatePortions();
     }
 }
 
 /**
- * Verringert die Portionenzahl um 1
+ * Verringert die Portionenzahl um 0.5
  */
 function decrementPortions() {
-    if (currentPortions > 1) { // Min 1 Portion
-        currentPortions--;
+    if (currentPortions > 0.5) { // Min 0.5 Portion
+        currentPortions -= 0.5;
         updatePortions();
     }
 }
@@ -33,7 +33,17 @@ function updatePortions() {
     // Portionenanzahl aktualisieren
     const portionDisplay = document.getElementById('current-portions');
     if (portionDisplay) {
-        portionDisplay.textContent = currentPortions;
+        // Halbe Portionen als "½" anzeigen
+        if (currentPortions % 1 === 0.5) {
+            const wholePart = Math.floor(currentPortions);
+            if (wholePart > 0) {
+                portionDisplay.textContent = `${wholePart} ½`;
+            } else {
+                portionDisplay.textContent = '½';
+            }
+        } else {
+            portionDisplay.textContent = currentPortions;
+        }
     }
 
     // Alle Zutaten aktualisieren

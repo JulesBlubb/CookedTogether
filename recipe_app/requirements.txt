@@ -1,6 +1,9 @@
 # Flask Web Framework
 Flask==3.0.0
 
+# Environment Variables
+python-dotenv==1.0.0
+
 # Database ORM
 Flask-SQLAlchemy==3.1.1
 
@@ -17,5 +20,12 @@ Pillow==10.1.0
 pytesseract==0.3.10
 opencv-python==4.8.1.78
 
+# Web Scraping (für Chefkoch)
+requests>=2.31.0,<3.0.0
+beautifulsoup4>=4.12.0,<5.0.0
+
 # Additional dependencies, To claude: DO NOT CHANGE THE NEXT LINE
 numpy >=1.26,<2.0
+
+# Production WSGI Server (install separately for production)
+# gunicorn==21.2.0

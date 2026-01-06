@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Rezept bearbeiten - Cooked Together{% endblock %}
+
+{% block content %}
+<div class="add-recipe-page">
+    <h1>Rezept bearbeiten</h1>
+
+    <!-- Rezept-Formular -->
+    <form action="{{ url_for('edit_recipe', recipe_id=recipe.id) }}" method="post" enctype="multipart/form-data" id="recipe-form">
+        <!-- Versteckte Felder für Quellenangabe -->
+        <input type="hidden" id="source" name="source" value="{{ recipe.source or '' }}">
+        <input type="hidden" id="source_url" name="source_url" value="{{ recipe.source_url or '' }}">
+
+        <!-- Basis-Informationen -->
+        <section class="form-section">
+            <h2>Basis-Informationen</h2>
+
+            <div class="form-group">
+                <label for="title">Titel: *</label>
+                <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    required
+                    maxlength="200"
+                    placeholder="z.B. Omas Apfelkuchen"
+                    class="form-input"
+                    value="{{ recipe.title }}"
+                >
+            </div>
+
+            <!-- Quellenangabe anzeigen falls vorhanden -->
+            {% if recipe.source or recipe.source_url %}
+            <div class="form-group" id="source-display">
+                <label>Quelle:</label>
+                <div class="source-info">
+                    {% if recipe.source_url %}
+                        <small>Quelle: <a href="{{ recipe.source_url }}" target="_blank">{{ recipe.source or 'Link' }}</a></small>
+                    {% else %}
+                        <small>Quelle: {{ recipe.source }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="description">Beschreibung / Anleitung:</label>
+                <textarea
+                    id="description"
+                    name="description"
+                    rows="8"
+                    placeholder="Beschreibe die Zubereitung Schritt für Schritt..."
+                    class="form-textarea"
+                >{{ recipe.description or '' }}</textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="base_portions">Portionen:</label>
+                    <input
+                        type="number"
+                        id="base_portions"
+                        name="base_portions"
+                        min="1"
+                        max="100"
+                        value="{{ recipe.base_portions }}"
+                        class="form-input"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="prep_time">Vorbereitungszeit (Min):</label>
+                    <input
+                        type="number"
+                        id="prep_time"
+                        name="prep_time"
+                        min="0"
+                        placeholder="z.B. 30"
+                        class="form-input"
+                        value="{{ recipe.prep_time_minutes or '' }}"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="cook_time">Kochzeit (Min):</label>
+                    <input
+                        type="number"
+                        id="cook_time"
+                        name="cook_time"
+                        min="0"
+                        placeholder="z.B. 45"
+                        class="form-input"
+                        value="{{ recipe.cook_time_minutes or '' }}"
+                    >
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="image">Rezeptbild (optional):</label>
+                {% if recipe.image_path %}
+                <div class="current-image">
+                    <img src="{{ url_for('uploaded_file', filename=recipe.image_path) }}" alt="{{ recipe.title }}" style="max-width: 300px; border-radius: 8px; margin-bottom: 10px;">
+                    <p><small>Aktuelles Bild (wird ersetzt wenn ein neues hochgeladen wird)</small></p>
+                </div>
+                {% endif %}
+                <input
+                    type="file"
+                    id="image"
+                    name="image"
+                    accept="image/jpeg,image/png,image/jpg"
+                    class="file-input"
+                >
+                <label for="image" class="file-label">
+                    <span class="upload-icon">🖼️</span>
+                    <span>Neues Bild auswählen (optional)</span>
+                </label>
+            </div>
+        </section>
+
+        <!-- Zutaten -->
+        <section class="form-section">
+            <h2>Zutaten</h2>
+
+            <div id="ingredients-container">
+                {% for ingredient in recipe.ingredients %}
+                <div class="ingredient-row">
+                    <input
+                        type="number"
+                        name="ingredient_amount[]"
+                        step="0.01"
+                        value="{{ ingredient.amount }}"
+                        placeholder="Menge"
+                        class="form-input ingredient-amount"
+                        required
+                    >
+                    <input
+                        type="text"
+                        name="ingredient_unit[]"
+                        value="{{ ingredient.unit }}"
+                        placeholder="Einheit"
+                        class="form-input ingredient-unit"
+                    >
+                    <input
+                        type="text"
+                        name="ingredient_name[]"
+                        value="{{ ingredient.name }}"
+                        placeholder="Zutat"
+                        class="form-input ingredient-name"
+                        required
+                    >
+                    <button type="button" onclick="removeIngredient(this)" class="btn-remove">✕</button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button type="button" onclick="addIngredient()" class="btn btn-secondary">
+                ➕ Weitere Zutat hinzufügen
+            </button>
+        </section>
+
+        <!-- Tags -->
+        <section class="form-section">
+            <h2>Tags (optional)</h2>
+
+            <div class="form-group">
+                <label for="tags">Tags (kommasepariert):</label>
+                <input
+                    type="text"
+                    id="tags"
+                    name="tags"
+                    placeholder="z.B. vegetarisch, schnell, dessert"
+                    class="form-input"
+                    value="{% for tag in recipe.tags %}{{ tag.name }}{% if not loop.last %}, {% endif %}{% endfor %}"
+                >
+                <small class="form-help">Mehrere Tags mit Komma trennen</small>
+            </div>
+        </section>
+
+        <!-- Aktionen -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-large">
+                ✅ Änderungen speichern
+            </button>
+            <a href="{{ url_for('view_recipe', recipe_id=recipe.id) }}" class="btn btn-secondary">
+                Abbrechen
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Token-Authentifizierung prüfen beim Laden der Seite
+    window.addEventListener('DOMContentLoaded', function() {
+        const token = localStorage.getItem('recipeAuthToken');
+
+        if (!token) {
+            // Kein Token vorhanden - zur Authentifizierung umleiten
+            window.location.href = '{{ url_for("auth_token_page") }}';
+        }
+    });
+
+    // Token zu Formular hinzufügen beim Absenden
+    document.getElementById('recipe-form').addEventListener('submit', function(e) {
+        const token = localStorage.getItem('recipeAuthToken');
+
+        if (!token) {
+            e.preventDefault();
+            alert('Kein gültiges Token vorhanden! Bitte authentifiziere dich erneut.');
+            window.location.href = '{{ url_for("auth_token_page") }}';
+            return false;
+        }
+
+        // Token als Header hinzufügen (wird vom Server überprüft)
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'auth_token';
+        tokenInput.value = token;
+        this.appendChild(tokenInput);
+    });
+
+    // Dynamische Zutatenzeilen hinzufügen
+    function addIngredient() {
+        const container = document.getElementById('ingredients-container');
+        const newRow = document.createElement('div');
+        newRow.className = 'ingredient-row';
+        newRow.innerHTML = `
+            <input type="number" name="ingredient_amount[]" step="0.01" placeholder="Menge" class="form-input ingredient-amount" required>
+            <input type="text" name="ingredient_unit[]" placeholder="Einheit" class="form-input ingredient-unit">
+            <input type="text" name="ingredient_name[]" placeholder="Zutat" class="form-input ingredient-name" required>
+            <button type="button" onclick="removeIngredient(this)" class="btn-remove">✕</button>
+        `;
+        container.appendChild(newRow);
+    }
+
+    // Zutat entfernen
+    function removeIngredient(button) {
+        button.parentElement.remove();
+    }
+
+    // Datei-Input Label aktualisieren
+    document.getElementById('image').addEventListener('change', function(e) {
+        const label = document.querySelector('label[for="image"] span:last-child');
+        if (this.files.length > 0) {
+            label.textContent = this.files[0].name;
+        }
+    });
+</script>
+{% endblock %}

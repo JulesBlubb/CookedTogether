@@ -23,6 +23,8 @@ class Recipe(db.Model):
     base_portions = db.Column(db.Integer, default=4, nullable=False)
     prep_time_minutes = db.Column(db.Integer, nullable=True)
     cook_time_minutes = db.Column(db.Integer, nullable=True)
+    source = db.Column(db.String(100), nullable=True)  # z.B. "chefkoch.de"
+    source_url = db.Column(db.String(500), nullable=True)  # Ursprüngliche URL
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Beziehungen zu anderen Tabellen

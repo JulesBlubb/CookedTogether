@@ -28,16 +28,25 @@
     <!-- Tag-Filter Pills -->
     {% if all_tags %}
     <div class="tag-filter-section">
-        <h3>Filter nach Kategorie:</h3>
+        <h3>Filter nach Kategorie: {% if selected_tags %}<small>({{ selected_tags|length }} ausgewählt)</small>{% endif %}</h3>
         <div class="tag-pills">
-            <a href="{{ url_for('index') }}"
-               class="tag-pill {% if not tag_filter %}active{% endif %}">
+            <a href="{{ url_for('index', search=search_term if search_term else '') }}"
+               class="tag-pill {% if not selected_tags %}active{% endif %}">
                 Alle
             </a>
             {% for tag in all_tags %}
-                <a href="{{ url_for('index', tag=tag.name) }}"
-                   class="tag-pill {% if tag_filter == tag.name %}active{% endif %}">
+                {% set is_selected = tag.name in selected_tags %}
+                {% if is_selected %}
+                    {# Tag entfernen wenn bereits ausgewählt #}
+                    {% set new_tags = selected_tags | reject('equalto', tag.name) | list %}
+                {% else %}
+                    {# Tag hinzufügen #}
+                    {% set new_tags = selected_tags + [tag.name] %}
+                {% endif %}
+                <a href="{{ url_for('index', tags=new_tags|join(','), search=search_term if search_term else '') }}"
+                   class="tag-pill {% if is_selected %}active{% endif %}">
                     {{ tag.name|capitalize }}
+                    {% if is_selected %}✓{% endif %}
                 </a>
             {% endfor %}
         </div>
@@ -53,7 +62,7 @@
                         <!-- Rezeptbild -->
                         {% if recipe.image_path %}
                             <div class="recipe-card-image">
-                                <img src="{{ url_for('static', filename='../uploads/' + recipe.image_path) }}"
+                                <img src="{{ url_for('uploaded_file', filename=recipe.image_path) }}"
                                      alt="{{ recipe.title }}">
                             </div>
                         {% else %}

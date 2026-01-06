@@ -6,12 +6,12 @@
 <div class="recipe-detail" id="recipe-detail">
     <!-- Zurück-Button -->
     <div class="back-button">
-        <a href="{{ url_for('index') }}" class="btn btn-secondary">← Zurück zur Übersicht</a>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary" data-i18n="back-to-overview">← Zurück zur Übersicht</a>
     </div>
 
     <!-- Rezept-Header -->
     <header class="recipe-header">
-        <h1 class="recipe-title">{{ recipe.title }}</h1>
+        <h1 class="recipe-title">{{ recipe.title|e }}</h1>
 
         <!-- Tags -->
         {% set tags_list = recipe.tags.all() %}
@@ -19,7 +19,7 @@
             <div class="recipe-tags">
                 {% for tag in tags_list %}
                     <a href="{{ url_for('index', tag=tag.name) }}" class="tag-badge">
-                        {{ tag.name }}
+                        {{ tag.name|e }}
                     </a>
                 {% endfor %}
             </div>
@@ -34,48 +34,69 @@
                 <span class="meta-item">🍳 Kochzeit: {{ recipe.cook_time_minutes }} min</span>
             {% endif %}
         </div>
+
+        <!-- Quellenangabe (falls vorhanden) -->
+        {% if recipe.source %}
+            <div class="recipe-source">
+                <small>
+                    Quelle:
+                    {% if recipe.source_url %}
+                        <a href="{{ recipe.source_url|e }}" target="_blank" rel="noopener noreferrer">{{ recipe.source|e }}</a>
+                    {% else %}
+                        {{ recipe.source|e }}
+                    {% endif %}
+                </small>
+            </div>
+        {% endif %}
     </header>
 
     <!-- Rezeptbild -->
     {% if recipe.image_path %}
         <div class="recipe-image">
-            <img src="{{ url_for('static', filename='../uploads/' + recipe.image_path) }}"
-                 alt="{{ recipe.title }}">
+            <img src="{{ url_for('uploaded_file', filename=recipe.image_path) }}"
+                 alt="{{ recipe.title|e }}"
+                 loading="lazy">
         </div>
     {% endif %}
 
-    <!-- Cooking Mode Button -->
-    <div class="cooking-mode-toggle">
-        <button onclick="toggleCookingMode()" class="btn btn-cooking-mode">
-            📱 Kochmodus aktivieren
+    <!-- Cooking Mode, Translation and Edit Buttons -->
+    <div class="action-buttons">
+        <button type="button" onclick="toggleCookingMode()" class="btn btn-cooking-mode" aria-label="Kochmodus aktivieren">
+            📱 <span data-i18n="cooking-mode-activate">Kochmodus aktivieren</span>
         </button>
+        <button type="button" onclick="translateRecipe()" class="btn btn-translate" id="translate-btn" aria-label="Rezept übersetzen">
+            🌐 <span data-i18n="translate-btn">Translate</span>
+        </button>
+        <a href="{{ url_for('edit_recipe', recipe_id=recipe.id) }}" class="btn btn-secondary" aria-label="Rezept bearbeiten">
+            ✏️ Rezept bearbeiten
+        </a>
     </div>
 
     <!-- Portionskontrolle -->
     <div class="portion-control">
-        <h2>Portionen:</h2>
-        <div class="portion-selector">
-            <button onclick="decrementPortions()" class="portion-btn">−</button>
+        <h2 data-i18n="portions-title">Portionen:</h2>
+        <div class="portion-selector" role="group" aria-label="Portionen anpassen">
+            <button type="button" onclick="decrementPortions()" class="portion-btn" aria-label="Portionen verringern">−</button>
             <span class="portion-display">
-                <span id="current-portions">{{ recipe.base_portions }}</span> Portionen
+                <span id="current-portions">{{ recipe.base_portions|default(1) }}</span> <span data-i18n="portions-label">Portionen</span>
             </span>
-            <button onclick="incrementPortions()" class="portion-btn">+</button>
+            <button type="button" onclick="incrementPortions()" class="portion-btn" aria-label="Portionen erhöhen">+</button>
         </div>
-        <p class="portion-hint">Basis: {{ recipe.base_portions }} Portionen</p>
+        <p class="portion-hint"><span data-i18n="portions-base">Basis:</span> {{ recipe.base_portions|default(1) }} <span data-i18n="portions-label">Portionen</span></p>
     </div>
 
     <!-- Zutatenliste -->
     <section class="ingredients-section">
-        <h2>Zutaten</h2>
+        <h2 data-i18n="ingredients-title">Zutaten</h2>
         <ul class="ingredients-list" id="ingredients-list">
             {% for ingredient in recipe.ingredients %}
                 <li class="ingredient-item"
-                    data-base-amount="{{ ingredient.amount }}"
-                    data-unit="{{ ingredient.unit }}"
-                    data-name="{{ ingredient.name }}">
-                    <span class="ingredient-amount">{{ ingredient.amount }}</span>
-                    <span class="ingredient-unit">{{ ingredient.unit }}</span>
-                    <span class="ingredient-name">{{ ingredient.name }}</span>
+                    data-base-amount="{{ ingredient.amount|e }}"
+                    data-unit="{{ ingredient.unit|e }}"
+                    data-name="{{ ingredient.name|e }}">
+                    <span class="ingredient-amount">{{ ingredient.amount|e }}</span>
+                    <span class="ingredient-unit">{{ ingredient.unit|e }}</span>
+                    <span class="ingredient-name">{{ ingredient.name|e }}</span>
                 </li>
             {% endfor %}
         </ul>
@@ -84,7 +105,7 @@
     <!-- Beschreibung/Anleitung -->
     {% if recipe.description %}
         <section class="description-section">
-            <h2>Zubereitung</h2>
+            <h2 data-i18n="preparation-title">Zubereitung</h2>
             <div class="recipe-description">
                 {{ recipe.description|replace('\n', '<br>')|safe }}
             </div>
@@ -93,7 +114,7 @@
 
     <!-- Kommentare -->
     <section class="comments-section">
-        <h2>Kommentare ({{ comments|length }})</h2>
+        <h2><span data-i18n="comments-title">Kommentare</span> ({{ comments|length }})</h2>
 
         <!-- Bestehende Kommentare -->
         {% if comments %}
@@ -101,27 +122,28 @@
                 {% for comment in comments %}
                     <article class="comment">
                         <div class="comment-header">
-                            <strong class="comment-author">{{ comment.author_name }}</strong>
-                            <time class="comment-date">{{ comment.created_at.strftime('%d.%m.%Y %H:%M') }}</time>
+                            <strong class="comment-author">{{ comment.author_name|e }}</strong>
+                            <time class="comment-date" datetime="{{ comment.created_at.isoformat() }}">{{ comment.created_at.strftime('%d.%m.%Y %H:%M') }}</time>
                         </div>
-                        <p class="comment-content">{{ comment.content }}</p>
+                        <p class="comment-content">{{ comment.content|e }}</p>
                     </article>
                 {% endfor %}
             </div>
         {% else %}
-            <p class="no-comments">Noch keine Kommentare. Sei der Erste!</p>
+            <p class="no-comments" data-i18n="no-comments">Noch keine Kommentare. Sei der Erste!</p>
         {% endif %}
 
         <!-- Kommentar hinzufügen -->
         <div class="add-comment-form">
-            <h3>Kommentar hinzufügen</h3>
+            <h3 data-i18n="add-comment-title">Kommentar hinzufügen</h3>
             <form action="{{ url_for('add_comment', recipe_id=recipe.id) }}" method="post">
                 <div class="form-group">
-                    <label for="author_name">Dein Name (optional):</label>
+                    <label for="author_name" data-i18n="author-name-label">Dein Name (optional):</label>
                     <input
                         type="text"
                         id="author_name"
                         name="author_name"
+                        data-i18n-placeholder="author-name-placeholder"
                         placeholder="Anonym"
                         maxlength="100"
                         class="form-input"
@@ -129,13 +151,14 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="content">Kommentar (max. 500 Zeichen):</label>
+                    <label for="content" data-i18n="comment-content-label">Kommentar (max. 500 Zeichen):</label>
                     <textarea
                         id="content"
                         name="content"
                         rows="4"
                         maxlength="500"
                         required
+                        data-i18n-placeholder="comment-content-placeholder"
                         placeholder="Wie hat dir das Rezept gefallen? Hast du Tipps?"
                         class="form-textarea"
                     ></textarea>
@@ -144,19 +167,19 @@
                     </span>
                 </div>
 
-                <button type="submit" class="btn btn-primary">Kommentar absenden</button>
+                <button type="submit" class="btn btn-primary" data-i18n="submit-comment-btn">Kommentar absenden</button>
             </form>
         </div>
     </section>
 </div>
-
-<!-- Basis-Portionen für JavaScript -->
-<script>
-    const BASE_PORTIONS = {{ recipe.base_portions }};
-</script>
 {% endblock %}
 
 {% block extra_scripts %}
+<script>
+    // @ts-nocheck
+    // BASE_PORTIONS für portions.js definieren
+    const BASE_PORTIONS = {{ recipe.base_portions|default(1)|tojson }};
+</script>
 <script>
     // Zeichenzähler für Kommentare
     const contentTextarea = document.getElementById('content');
@@ -173,14 +196,285 @@
         const recipeDetail = document.getElementById('recipe-detail');
         const btn = document.querySelector('.btn-cooking-mode');
 
+        if (!recipeDetail || !btn) {
+            console.error('Required elements not found for cooking mode');
+            return;
+        }
+
         recipeDetail.classList.toggle('cooking-mode');
 
         if (recipeDetail.classList.contains('cooking-mode')) {
-            btn.textContent = '❌ Kochmodus beenden';
+            const deactivateText = isTranslated ? 'Exit Cooking Mode' : 'Kochmodus beenden';
+            btn.innerHTML = '❌ <span>' + sanitizeHTML(deactivateText) + '</span>';
             // Zum Anfang scrollen
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
-            btn.textContent = '📱 Kochmodus aktivieren';
+            const activateText = isTranslated ? 'Activate Cooking Mode' : 'Kochmodus aktivieren';
+            btn.innerHTML = '📱 <span data-i18n="cooking-mode-activate">' + sanitizeHTML(activateText) + '</span>';
+        }
+    }
+
+    // Helper function to sanitize HTML
+    function sanitizeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // Translation Toggle
+    let isTranslated = false;
+    let originalContent = null;
+
+    // Übersetzungs-Wörterbuch für UI-Elemente
+    const translations = {
+        'de': {
+            'cooking-mode-activate': 'Kochmodus aktivieren',
+            'cooking-mode-deactivate': 'Kochmodus beenden',
+            'translate-btn': 'Translate',
+            'portions-title': 'Portionen:',
+            'portions-label': 'Portionen',
+            'portions-base': 'Basis:',
+            'ingredients-title': 'Zutaten',
+            'preparation-title': 'Zubereitung',
+            'comments-title': 'Kommentare',
+            'no-comments': 'Noch keine Kommentare. Sei der Erste!',
+            'add-comment-title': 'Kommentar hinzufügen',
+            'author-name-label': 'Dein Name (optional):',
+            'author-name-placeholder': 'Anonym',
+            'comment-content-label': 'Kommentar (max. 500 Zeichen):',
+            'comment-content-placeholder': 'Wie hat dir das Rezept gefallen? Hast du Tipps?',
+            'submit-comment-btn': 'Kommentar absenden',
+            'back-to-overview': '← Zurück zur Übersicht'
+        },
+        'en': {
+            'cooking-mode-activate': 'Activate Cooking Mode',
+            'cooking-mode-deactivate': 'Exit Cooking Mode',
+            'translate-btn': 'Übersetzen',
+            'portions-title': 'Servings:',
+            'portions-label': 'servings',
+            'portions-base': 'Base:',
+            'ingredients-title': 'Ingredients',
+            'preparation-title': 'Preparation',
+            'comments-title': 'Comments',
+            'no-comments': 'No comments yet. Be the first!',
+            'add-comment-title': 'Add Comment',
+            'author-name-label': 'Your Name (optional):',
+            'author-name-placeholder': 'Anonymous',
+            'comment-content-label': 'Comment (max. 500 characters):',
+            'comment-content-placeholder': 'How did you like the recipe? Any tips?',
+            'submit-comment-btn': 'Submit Comment',
+            'back-to-overview': '← Back to Overview'
+        }
+    };
+
+    function translateRecipe() {
+        const translateBtn = document.getElementById('translate-btn');
+
+        if (!translateBtn) {
+            console.error('Translate button not found');
+            return;
+        }
+
+        if (!isTranslated) {
+            // Sprache des Rezepts erkennen
+            const recipeTitleElem = document.querySelector('.recipe-title');
+            if (!recipeTitleElem) {
+                console.error('Recipe title not found');
+                return;
+            }
+            const recipeTitle = recipeTitleElem.textContent || '';
+            const recipeDescription = document.querySelector('.recipe-description')?.textContent || '';
+            const combinedText = recipeTitle + ' ' + recipeDescription;
+
+            // Einfache Spracherkennung (Deutsch vs Englisch)
+            const germanWords = ['und', 'der', 'die', 'das', 'mit', 'für', 'einen', 'eine', 'wird'];
+            const englishWords = ['and', 'the', 'with', 'for', 'a', 'an', 'is', 'are'];
+
+            let germanCount = 0;
+            let englishCount = 0;
+
+            germanWords.forEach(word => {
+                if (combinedText.toLowerCase().includes(word)) germanCount++;
+            });
+
+            englishWords.forEach(word => {
+                if (combinedText.toLowerCase().includes(word)) englishCount++;
+            });
+
+            const isGerman = germanCount >= englishCount;
+            const targetLang = isGerman ? 'en' : 'de';
+            const sourceLang = isGerman ? 'de' : 'en';
+
+            // Original-Inhalt speichern
+            saveOriginalContent();
+
+            // Disable button während Übersetzung
+            translateBtn.disabled = true;
+            translateBtn.innerHTML = '⏳ <span>Translating...</span>';
+
+            // Übersetzung durchführen
+            translateContent(sourceLang, targetLang)
+                .then(() => {
+                    // UI-Elemente übersetzen
+                    translateUIElements(targetLang);
+
+                    // Button-Text ändern
+                    const btnText = translations[targetLang]?.['translate-btn'] || 'Übersetzen';
+                    translateBtn.innerHTML = '🌐 <span data-i18n="translate-btn">' + sanitizeHTML(btnText) + '</span>';
+                    isTranslated = true;
+                })
+                .catch(error => {
+                    console.error('Translation failed:', error);
+                    alert('Übersetzung fehlgeschlagen. Bitte versuchen Sie es später erneut.');
+                })
+                .finally(() => {
+                    translateBtn.disabled = false;
+                });
+        } else {
+            // Zurück zur Originalsprache
+            restoreOriginalContent();
+
+            // UI-Elemente zurücksetzen
+            translateUIElements('de');
+
+            // Button-Text zurücksetzen
+            translateBtn.innerHTML = '🌐 <span data-i18n="translate-btn">Translate</span>';
+            isTranslated = false;
+        }
+    }
+
+    function translateUIElements(lang) {
+        // Alle Elemente mit data-i18n Attribut übersetzen
+        document.querySelectorAll('[data-i18n]').forEach(elem => {
+            const key = elem.getAttribute('data-i18n');
+            if (translations[lang] && translations[lang][key]) {
+                elem.textContent = translations[lang][key];
+            }
+        });
+
+        // Placeholder-Texte übersetzen
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(elem => {
+            const key = elem.getAttribute('data-i18n-placeholder');
+            if (translations[lang] && translations[lang][key]) {
+                elem.placeholder = translations[lang][key];
+            }
+        });
+    }
+
+    function saveOriginalContent() {
+        const titleElem = document.querySelector('.recipe-title');
+        if (!titleElem) {
+            console.error('Cannot save content: title element not found');
+            return;
+        }
+
+        originalContent = {
+            title: titleElem.textContent || '',
+            description: document.querySelector('.recipe-description')?.innerHTML || '',
+            ingredients: []
+        };
+
+        document.querySelectorAll('.ingredient-name').forEach(elem => {
+            originalContent.ingredients.push(elem.textContent || '');
+        });
+    }
+
+    function restoreOriginalContent() {
+        if (!originalContent) {
+            console.warn('No original content to restore');
+            return;
+        }
+
+        const titleElem = document.querySelector('.recipe-title');
+        if (titleElem) {
+            titleElem.textContent = originalContent.title;
+        }
+
+        const descElem = document.querySelector('.recipe-description');
+        if (descElem && originalContent.description) {
+            descElem.innerHTML = originalContent.description;
+        }
+
+        const ingredientElems = document.querySelectorAll('.ingredient-name');
+        ingredientElems.forEach((elem, index) => {
+            if (index < originalContent.ingredients.length) {
+                elem.textContent = originalContent.ingredients[index];
+            }
+        });
+    }
+
+    async function translateContent(sourceLang, targetLang) {
+        // Titel übersetzen
+        const titleElem = document.querySelector('.recipe-title');
+        if (titleElem && titleElem.textContent) {
+            const translatedTitle = await translateText(titleElem.textContent, sourceLang, targetLang);
+            titleElem.textContent = translatedTitle;
+        }
+
+        // Beschreibung übersetzen
+        const descriptionElem = document.querySelector('.recipe-description');
+        if (descriptionElem && descriptionElem.innerHTML) {
+            const lines = descriptionElem.innerHTML.split('<br>');
+            const translatedLines = await Promise.all(
+                lines.map(line => translateText(line.trim(), sourceLang, targetLang))
+            );
+            descriptionElem.innerHTML = translatedLines.join('<br>');
+        }
+
+        // Zutaten übersetzen (mit Rate Limiting)
+        const ingredientNames = document.querySelectorAll('.ingredient-name');
+        for (let i = 0; i < ingredientNames.length; i++) {
+            const elem = ingredientNames[i];
+            if (elem.textContent) {
+                const translated = await translateText(elem.textContent, sourceLang, targetLang);
+                elem.textContent = translated;
+
+                // Kleine Verzögerung um Rate Limits zu vermeiden
+                if (i < ingredientNames.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+        }
+    }
+
+    async function translateText(text, sourceLang, targetLang) {
+        if (!text || text.trim() === '') return text;
+
+        try {
+            // MyMemory Translation API (kostenlos, kein API-Key erforderlich)
+            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+            const response = await fetch(url, {
+                signal: controller.signal,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.responseStatus === 200 && data.responseData?.translatedText) {
+                return data.responseData.translatedText;
+            } else {
+                console.error('Übersetzungsfehler:', data);
+                return text;
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.error('Übersetzung Timeout:', error);
+            } else {
+                console.error('Fehler bei der Übersetzung:', error);
+            }
+            return text;
         }
     }
 </script>

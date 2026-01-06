@@ -1,0 +1,32 @@
+[Unit]
+Description=Cooked Together Recipe Application
+After=network.target
+
+[Service]
+Type=notify
+User=cookedtogether
+Group=www-data
+WorkingDirectory=/home/cookedtogether/app/recipe_app
+Environment="PATH=/home/cookedtogether/app/recipe_app/venv/bin"
+EnvironmentFile=/home/cookedtogether/app/recipe_app/.env
+
+ExecStart=/home/cookedtogether/app/recipe_app/venv/bin/gunicorn \
+    --config gunicorn_config.py \
+    --bind 127.0.0.1:8000 \
+    app:app
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cookedtogether
+
+[Install]
+WantedBy=multi-user.target

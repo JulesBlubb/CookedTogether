@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Token-Authentifizierung - Cooked Together{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-container">
+        <h1>🔐 Token-Authentifizierung</h1>
+        <p class="auth-description">
+            Um ein neues Rezept hinzuzufügen, benötigst du ein gültiges Authentifizierungs-Token.
+            Dieses Token wird auf deinem Gerät gespeichert, sodass du es nur einmal eingeben musst.
+        </p>
+
+        <form id="token-form" class="token-form">
+            <div class="form-group">
+                <label for="token">Authentifizierungs-Token:</label>
+                <input
+                    type="password"
+                    id="token"
+                    name="token"
+                    required
+                    placeholder="Token eingeben"
+                    class="form-input"
+                    autocomplete="off"
+                >
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-large">
+                    ✅ Token speichern
+                </button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                    Abbrechen
+                </a>
+            </div>
+        </form>
+
+        <div id="auth-status" class="auth-status"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.getElementById('token-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const token = document.getElementById('token').value.trim();
+        const statusDiv = document.getElementById('auth-status');
+
+        if (!token) {
+            statusDiv.innerHTML = '<p class="error">Bitte gib ein Token ein!</p>';
+            return;
+        }
+
+        statusDiv.innerHTML = '<p class="info">⏳ Token wird überprüft...</p>';
+
+        try {
+            const response = await fetch('{{ url_for("verify_token") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token: token })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Token im LocalStorage speichern
+                localStorage.setItem('recipeAuthToken', token);
+
+                statusDiv.innerHTML = '<p class="success">✅ Token erfolgreich gespeichert! Du wirst weitergeleitet...</p>';
+
+                // Weiterleitung nach 2 Sekunden
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("add_recipe") }}';
+                }, 2000);
+            } else {
+                statusDiv.innerHTML = '<p class="error">❌ Ungültiges Token! Bitte versuche es erneut.</p>';
+            }
+        } catch (error) {
+            statusDiv.innerHTML = '<p class="error">❌ Verbindungsfehler: ' + error.message + '</p>';
+        }
+    });
+</script>
+{% endblock %}

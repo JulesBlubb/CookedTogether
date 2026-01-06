@@ -22,7 +22,7 @@
             <h1 class="site-title">
                 <a href="{{ url_for('index') }}">🍳 Cooked Together</a>
             </h1>
-            <p class="site-subtitle">Recipes proofed by Weilbäche</p>
+            <p class="site-subtitle">Family-Tested & Kitchen-Approved</p>
         </div>
     </header>
 
@@ -57,13 +57,13 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <p>&copy; 2026 Familie Weilbäche | Cooked Together</p>
-            <p>Mobile-first Rezeptverwaltung mit ❤️ erstellt</p>
+            <p>&copy; 2026 Gaby & Juliane | Cooked Together</p>
+            <p>Rezeptesammlung mit ❤️ erstellt</p>
         </div>
     </footer>
 
     <!-- JavaScript einbinden -->
-    <script src="{{ url_for('static', filename='js/portions.js') }}"></script>
     {% block extra_scripts %}{% endblock %}
+    <script src="{{ url_for('static', filename='js/portions.js') }}"></script>
 </body>
 </html>
